@@ -1,0 +1,5 @@
+onnx
+onnxruntime-gpu
+opencv-python
+tqdm
+matplotlib
