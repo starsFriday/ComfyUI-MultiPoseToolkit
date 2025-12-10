@@ -42,7 +42,12 @@ def _taylor(heatmap, coord):
         hessian[0][1] = 0.25 * (
             heatmap[py + 1][px + 1] - heatmap[py - 1][px + 1] - heatmap[py + 1][px - 1] + heatmap[py - 1][px - 1])
         hessian[1][0] = hessian[0][1]
-        hessian = np.linalg.inv(hessian)
+        # add light regularization so nearly-flat heatmaps do not yield a singular Hessian
+        hessian += np.eye(2, dtype=hessian.dtype) * 1e-6
+        try:
+            hessian = np.linalg.inv(hessian)
+        except np.linalg.LinAlgError:
+            hessian = np.linalg.pinv(hessian)
         offset = -hessian @ derivative
         coord += offset.reshape(2)
     return coord
