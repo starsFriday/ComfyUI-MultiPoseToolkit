@@ -20,6 +20,8 @@ license = {file = "LICENSE"}
 #     "Environment :: GPU :: Apple Metal",    # Apple Metal support
 # ]
 
+# dependencies = ["onnx", "onnxruntime-gpu", "opencv-python", "tqdm", "matplotlib"]
+
 [project.urls]
 Repository = "https://github.com/starsFriday/ComfyUI-MultiPoseToolkit"
 #  Used by Comfy Registry https://registry.comfy.org
@@ -27,7 +29,7 @@ Documentation = "https://github.com/starsFriday/ComfyUI-MultiPoseToolkit/wiki"
 "Bug Tracker" = "https://github.com/starsFriday/ComfyUI-MultiPoseToolkit/issues"
 
 [tool.comfy]
-PublisherId = "starsFriday"
+PublisherId = "starsfriday"
 DisplayName = "ComfyUI-MultiPoseToolkit"
 Icon = ""
 includes = [] 
