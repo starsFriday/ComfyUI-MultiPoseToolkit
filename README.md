@@ -9,6 +9,7 @@ A lightweight, ComfyUI-native preprocessing toolkit dedicated to **full multi-pe
 Everything runs through ONNX Runtime, so it works on CUDA or CPU and integrates neatly into image/video workflows.
 
 <img width="868" height="1152" src="https://ai.static.ad2.cc/preview.png" />
+<img width="243" height="954" src="https://ai.static.ad2.cc/preview1.png" />
 ---
 
 ## Pipeline Overview
@@ -59,6 +60,7 @@ custom_nodes/ComfyUI-MultiPoseToolkit/
 | --- | --- | --- |
 | `MultiPose ▸ ONNX Loader` | `toolkit.models.runtime.OnnxRuntimeLoader` | Select YOLO + ViTPose checkpoints and return a cached `POSEMODEL` dict. |
 | `MultiPose ▸ Pose Extraction` | `toolkit.pipeline.detector.MultiPersonPoseExtraction` | Feed in the `POSEMODEL` + frame tensor, get back pose canvases with every detected skeleton layered together. |
+| `MultiPose ▸ Coordinate Sampler` | `toolkit.pipeline.detector.MultiPoseCoordinateSampler` | Reuse the same detector stack to output positive/negative point JSON plus per-frame bbox tuples for downstream tools. |
 
 ---
 
@@ -70,6 +72,23 @@ custom_nodes/ComfyUI-MultiPoseToolkit/
 2. `MultiPose ▸ ONNX Loader` – loads YOLO + ViTPose.
 3. `MultiPose ▸ Pose Extraction` – produces pose frames (multi-person aware).
 4. `VHS_VideoCombine` – stitches the frames back into a preview video.
+
+---
+
+## Coordinate Sampling Outputs
+
+`MultiPose ▸ Coordinate Sampler` is designed for workflows that need textual/JSON annotations instead of rendered canvases.
+
+- **Inputs**: `POSEMODEL`, `IMAGE`, plus tuning knobs (`positive_points`, `negative_points`, `person_index`, `seed`, etc.).
+- **Positive sampling modes**:
+  - `pose` (default) runs ViTPose to grab confident joints, interpolates between them, and enforces a minimum spacing inside the bbox so points stay on-body and evenly spread.
+  - `bbox` skips ViTPose and scatters points uniformly inside the detection box for a faster but less precise result.
+- **Outputs**:
+  - `positive_coords`: JSON string (single frame → `[{"x":..,"y":..}, ...]`; multi-frame → `[{ "image_index": i, "points": [...]}, ...]`).
+  - `negative_coords`: same format but sampled outside every detected bbox.
+  - `bboxes`: list of `(x0, y0, x1, y1)` tuples (typed as ComfyUI `BBOX`), matching the official WanAnimate preprocess node format.
+
+The node is deterministic per `seed`, so you can regenerate the same annotations when iterating on prompts or scripts.
 
 ---
 

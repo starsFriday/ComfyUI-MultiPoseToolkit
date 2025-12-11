@@ -1,9 +1,10 @@
 def _lazy_import():
     from .toolkit.models.runtime import OnnxRuntimeLoader
-    from .toolkit.pipeline.detector import MultiPersonPoseExtraction
+    from .toolkit.pipeline.detector import MultiPersonPoseExtraction, MultiPoseCoordinateSampler
     return {
         "OnnxRuntimeLoader": OnnxRuntimeLoader,
         "MultiPersonPoseExtraction": MultiPersonPoseExtraction,
+        "MultiPoseCoordinateSampler": MultiPoseCoordinateSampler,
     }
 
 _NODE_CACHE = None
@@ -18,4 +19,5 @@ NODE_CLASS_MAPPINGS = _node_map()
 NODE_DISPLAY_NAME_MAPPINGS = {
     "OnnxRuntimeLoader": "MultiPose ▸ ONNX Loader",
     "MultiPersonPoseExtraction": "MultiPose ▸ Pose Extraction",
+    "MultiPoseCoordinateSampler": "MultiPose ▸ Coordinate Sampler",
 }
