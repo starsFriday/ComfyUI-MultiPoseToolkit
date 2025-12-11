@@ -9,7 +9,7 @@ A lightweight, ComfyUI-native preprocessing toolkit dedicated to **full multi-pe
 Everything runs through ONNX Runtime, so it works on CUDA or CPU and integrates neatly into image/video workflows.
 
 <img width="868" height="1152" src="https://ai.static.ad2.cc/preview.png" />
-<img width="243" height="954" src="https://ai.static.ad2.cc/preview1.png" />
+<img width="1243" height="954" src="https://ai.static.ad2.cc/preview1.png" />
 ---
 
 ## Pipeline Overview
