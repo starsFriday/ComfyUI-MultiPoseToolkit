@@ -222,18 +222,32 @@ def _sample_positive_points(
     return _select_spread_points(candidate_points, count, rng, min_distance)
 
 
-def _format_points_output(entries):
+def _format_points_output(entries, flatten=False):
     if not entries:
         return "[]"
+    if flatten:
+        flattened = []
+        for entry in entries:
+            points = entry.get("points", [])
+            meta = {
+                key: entry[key]
+                for key in ("image_index", "person_index")
+                if key in entry
+            }
+            for pt in points:
+                merged = dict(pt)
+                merged.update(meta)
+                flattened.append(merged)
+        return json.dumps(flattened, ensure_ascii=False)
     if len(entries) == 1:
         return json.dumps(entries[0]["points"], ensure_ascii=False)
     return json.dumps(entries, ensure_ascii=False)
 
 
-def _format_bbox_output(entries):
-    if not entries:
+def _format_bbox_output(bboxes_by_frame):
+    if not bboxes_by_frame:
         return []
-    return [entry["bbox"] for entry in entries]
+    return [[tuple(int(v) for v in bbox) for bbox in frame_boxes] for frame_boxes in bboxes_by_frame]
 
 
 class MultiPersonPoseExtraction:
@@ -347,7 +361,7 @@ class MultiPoseCoordinateSampler:
                 "images": ("IMAGE",),
                 "positive_points": ("INT", {"default": 3, "min": 1, "max": 50, "step": 1}),
                 "negative_points": ("INT", {"default": 5, "min": 1, "max": 100, "step": 1}),
-                "person_index": ("INT", {"default": 0, "min": 0, "max": 32, "step": 1}),
+                "person_index": ("INT", {"default": -1, "min": -1, "max": 32, "step": 1}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0x7FFFFFFF, "step": 1}),
                 "detect_multi_persons": ("BOOLEAN", {"default": True}),
                 "positive_mode": (["pose", "bbox"],{"default": "pose"}),
@@ -367,7 +381,7 @@ class MultiPoseCoordinateSampler:
         images,
         positive_points=3,
         negative_points=5,
-        person_index=0,
+        person_index=-1,
         seed=0,
         detect_multi_persons=True,
         positive_mode="pose",
@@ -456,35 +470,47 @@ class MultiPoseCoordinateSampler:
         rng = np.random.default_rng(int(seed))
         positive_entries = []
         negative_entries = []
-        bbox_entries = []
+        bboxes_by_frame = []
+        sample_all_persons = int(person_index) < 0
 
         for frame_idx, boxes in enumerate(frame_person_bboxes):
             if not boxes:
                 boxes = [_sanitize_bbox([0, 0, W, H], W, H)]
-            target_idx = min(max(int(person_index), 0), len(boxes) - 1)
-            target_bbox = boxes[target_idx]
-            bbox_bounds = _bbox_to_int_bounds(target_bbox, W, H)
-            forbidden_bounds = [_bbox_to_int_bounds(b, W, H) for b in boxes]
-            target_keypoints = None
-            if use_pose_sampling:
-                kp_list = frame_person_keypoints[frame_idx] if frame_idx < len(frame_person_keypoints) else []
-                if kp_list and target_idx < len(kp_list):
-                    target_keypoints = kp_list[target_idx]
-            pos_points = _sample_positive_points(
-                rng,
-                bbox_bounds,
-                positive_points,
-                keypoints=target_keypoints,
-                conf_threshold=pose_conf_threshold,
-                jitter=pose_jitter,
+            kp_list = frame_person_keypoints[frame_idx] if frame_idx < len(frame_person_keypoints) else []
+            target_indices = (
+                list(range(len(boxes)))
+                if sample_all_persons
+                else [min(max(int(person_index), 0), len(boxes) - 1)]
             )
-            neg_points = _sample_points_outside_bboxes(rng, W, H, forbidden_bounds, negative_points)
-            positive_entries.append({"image_index": frame_idx, "points": pos_points})
-            negative_entries.append({"image_index": frame_idx, "points": neg_points})
-            bbox_entries.append({"image_index": frame_idx, "bbox": tuple(int(v) for v in bbox_bounds)})
+            forbidden_bounds = [_bbox_to_int_bounds(b, W, H) for b in boxes]
+            frame_negative = _sample_points_outside_bboxes(rng, W, H, forbidden_bounds, negative_points)
+            frame_bboxes = []
 
-        positive_output = _format_points_output(positive_entries)
-        negative_output = _format_points_output(negative_entries)
-        bbox_output = _format_bbox_output(bbox_entries)
+            for target_idx in target_indices:
+                target_bbox = boxes[target_idx]
+                bbox_bounds = _bbox_to_int_bounds(target_bbox, W, H)
+                target_keypoints = None
+                if use_pose_sampling and kp_list and target_idx < len(kp_list):
+                    target_keypoints = kp_list[target_idx]
+                pos_points = _sample_positive_points(
+                    rng,
+                    bbox_bounds,
+                    positive_points,
+                    keypoints=target_keypoints,
+                    conf_threshold=pose_conf_threshold,
+                    jitter=pose_jitter,
+                )
+                positive_entries.append(
+                    {"image_index": frame_idx, "person_index": int(target_idx), "points": pos_points}
+                )
+                negative_entries.append(
+                    {"image_index": frame_idx, "person_index": int(target_idx), "points": frame_negative}
+                )
+                frame_bboxes.append(tuple(int(v) for v in bbox_bounds))
+            bboxes_by_frame.append(frame_bboxes)
 
-        return (positive_output, negative_output, [bbox_output])
+        positive_output = _format_points_output(positive_entries, flatten=sample_all_persons)
+        negative_output = _format_points_output(negative_entries, flatten=sample_all_persons)
+        bbox_output = _format_bbox_output(bboxes_by_frame)
+
+        return (positive_output, negative_output, bbox_output)

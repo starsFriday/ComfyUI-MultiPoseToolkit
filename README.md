@@ -9,7 +9,7 @@ A lightweight, ComfyUI-native preprocessing toolkit dedicated to **full multi-pe
 Everything runs through ONNX Runtime, so it works on CUDA or CPU and integrates neatly into image/video workflows.
 
 <img width="868" height="1152" src="https://ai.static.ad2.cc/preview.png" />
-<img width="1243" height="954" src="https://ai.static.ad2.cc/preview1.png" />
+<img width="243" height="954" src="https://ai.static.ad2.cc/preview1.png" />
 ---
 
 ## Pipeline Overview
@@ -79,14 +79,14 @@ custom_nodes/ComfyUI-MultiPoseToolkit/
 
 `MultiPose ▸ Coordinate Sampler` is designed for workflows that need textual/JSON annotations instead of rendered canvases.
 
-- **Inputs**: `POSEMODEL`, `IMAGE`, plus tuning knobs (`positive_points`, `negative_points`, `person_index`, `seed`, etc.).
+- **Inputs**: `POSEMODEL`, `IMAGE`, plus tuning knobs (`positive_points`, `negative_points`, `person_index`, `seed`, etc.). Set `person_index = -1` (default) to emit entries for **every** detected person per frame; set it to a specific index to stick with a single bbox.
 - **Positive sampling modes**:
   - `pose` (default) runs ViTPose to grab confident joints, interpolates between them, and enforces a minimum spacing inside the bbox so points stay on-body and evenly spread.
   - `bbox` skips ViTPose and scatters points uniformly inside the detection box for a faster but less precise result.
 - **Outputs**:
-  - `positive_coords`: JSON string (single frame → `[{"x":..,"y":..}, ...]`; multi-frame → `[{ "image_index": i, "points": [...]}, ...]`).
-  - `negative_coords`: same format but sampled outside every detected bbox.
-  - `bboxes`: list of `(x0, y0, x1, y1)` tuples (typed as ComfyUI `BBOX`), matching the official WanAnimate preprocess node format.
+  - `positive_coords`: JSON string. Single detection → `[{"x":..,"y":..}, ...]`; multi-person (`person_index = -1`) flattens to `[{"x":..,"y":..,"person_index":p,"image_index":i}, ...]` so downstream nodes that expect simple point lists still work.
+  - `negative_coords`: same format as `positive_coords`, sampled outside every detected bbox (duplicated per person when `person_index = -1` for alignment).
+  - `bboxes`: per-frame list of `(x0, y0, x1, y1)` tuples (typed as ComfyUI `BBOX`), ordered to match the `person_index` values.
 
 The node is deterministic per `seed`, so you can regenerate the same annotations when iterating on prompts or scripts.
 
